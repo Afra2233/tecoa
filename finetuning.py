@@ -195,6 +195,9 @@ upper_limit, lower_limit = 1, 0
 
 def main():
     global best_acc1, device
+ 
+    print("cuda device count:", torch.cuda.device_count())
+    print("current device:", torch.cuda.current_device())
 
     args = parse_option()
     args.train_eps = args.train_eps / 255.
@@ -949,7 +952,7 @@ def validate(val_loader_list, val_dataset_name, texts_list, model, model_text, m
                     delta_prompt = attack_CW(prompter, model, model_text, model_image, add_prompter, criterion,
                                              images, target, text_tokens,
                                              test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps)
-                attacked_images = images + delta_prompt
+                    attacked_images = images + delta_prompt
                 elif args.autoattack:
                     attacked_images = attack_auto(model, images, target, text_tokens,
                         None, None, epsilon=args.test_eps, attacks_to_run=attacks_to_run)

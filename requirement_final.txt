@@ -1,4 +1,4 @@
-autoattack==0.1
+git+https://github.com/fra31/auto-attack
 certifi==2022.6.15.1
 charset-normalizer==2.1.1
 click==8.1.3

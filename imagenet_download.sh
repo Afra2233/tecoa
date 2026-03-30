@@ -62,15 +62,11 @@ download_with_resume() {
     fi
 
     say "开始下载: $out"
+
     if [[ -n "$COOKIE_FILE" ]]; then
-        wget -c --progress=bar:force:noscroll \
-             --tries=20 --waitretry=30 --timeout=60 --read-timeout=60 \
-             --load-cookies "$COOKIE_FILE" --keep-session-cookies \
-             "$url" -O "$out"
+        curl -L -C - --progress-bar -b "$COOKIE_FILE" -c "$COOKIE_FILE" "$url" -o "$out"
     else
-        wget -c --progress=bar:force:noscroll \
-             --tries=20 --waitretry=30 --timeout=60 --read-timeout=60 \
-             "$url" -O "$out"
+        curl -L -C - --progress-bar "$url" -o "$out"
     fi
 
     if file "$out" | grep -qiE 'HTML|XML|ASCII text'; then
@@ -81,7 +77,6 @@ download_with_resume() {
     touch "$done_mark"
     say "下载完成: $out"
 }
-
 ########################################
 # 1) download archives
 ########################################

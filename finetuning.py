@@ -815,21 +815,44 @@ def train(train_loader, texts, model, model_text, model_image, prompter, add_pro
         # print(images.min(), images.max())
 
         # with automatic mixed precision
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        # with autocast():
+        #     if not args.VPbaseline:
+        #         delta = attack_pgd(prompter, model, model_text, model_image, add_prompter, criterion, images,
+        #                            target, text_tokens, alpha, attack_iters, 'l_inf', epsilon=args.train_eps)
+        #         # print('delta', delta.min(), delta.max())
+
+        #         tmp = clip_img_preprocessing(images + delta)
+        #     else:
+        #         tmp = clip_img_preprocessing(images)
+
+        #     prompted_images = prompter(tmp)
+        #     prompt_token = None
+
+        #     # for multiple GPU
+        #     output, _ = multiGPU_CLIP(model_image, model_text, model, prompted_images, text_tokens, prompt_token)
+
+        #     loss = criterion(output, target)
+        #     scaler.scale(loss).backward()
+        #     scaler.step(optimizer)
+        # scaler.update()
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  
         with autocast():
             if not args.VPbaseline:
-                delta = attack_pgd(prompter, model, model_text, model_image, add_prompter, criterion, images,
-                                   target, text_tokens, alpha, attack_iters, 'l_inf', epsilon=args.train_eps)
-                # print('delta', delta.min(), delta.max())
-
+                delta = attack_pgd_noprompt(
+                    prompter, model, model_text, model_image, criterion,
+                    images, target, text_tokens,
+                    alpha, attack_iters, 'l_inf', epsilon=args.train_eps
+                )
                 tmp = clip_img_preprocessing(images + delta)
             else:
                 tmp = clip_img_preprocessing(images)
 
-            prompted_images = prompter(tmp)
-            prompt_token = None
-
-            # for multiple GPU
-            output, _ = multiGPU_CLIP(model_image, model_text, model, prompted_images, text_tokens, prompt_token)
+            output, _ = multiGPU_CLIP(
+                model_image, model_text, model,
+                tmp, text_tokens, None
+            )
 
             loss = criterion(output, target)
             scaler.scale(loss).backward()
@@ -872,8 +895,144 @@ def train(train_loader, texts, model, model_text, model_image, prompter, add_pro
 
     return losses.avg, top1.avg
 
-
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # def validate(val_loader, texts, model, prompter, add_prompter, criterion, args):
+# def validate(val_loader_list, val_dataset_name, texts_list, model, model_text, model_image,
+#              prompter, add_prompter, criterion, args):
+#     dataset_num = len(val_loader_list)
+#     acc_all = []
+
+#     test_stepsize = args.test_stepsize
+
+#     for cnt in range(dataset_num):
+
+#         val_loader = val_loader_list[cnt]
+#         texts = texts_list[cnt]
+#         dataset_name = val_dataset_name[cnt]
+
+#         binary = ['PCAM', 'hateful_memes']
+#         attacks_to_run=['apgd-ce', 'apgd-dlr']
+#         if dataset_name in binary:
+#             attacks_to_run=['apgd-ce']
+
+#         batch_time = AverageMeter('Time', ':6.3f')
+#         losses = AverageMeter('Loss', ':.4e')
+#         top1_org = AverageMeter('Original Acc@1', ':6.2f')
+#         top1_prompt = AverageMeter('Prompt Acc@1', ':6.2f')
+#         top1_adv_org = AverageMeter('Adv Original Acc@1', ':6.2f')
+#         top1_adv_prompt = AverageMeter('Adv Prompt Acc@1', ':6.2f')
+
+#         progress = ProgressMeter(
+#             len(val_loader),
+#             [batch_time, losses, top1_org, top1_prompt, top1_adv_org, top1_adv_prompt],
+#             prefix=dataset_name + '_Validate: ')
+
+#         # switch to evaluation mode
+#         prompter.eval()
+#         add_prompter.eval()
+#         model.eval()
+
+#         # print(val_dataset_name, 'text token', texts_list)
+
+#         #
+#         end = time.time()
+#         for i, (images, target) in enumerate(tqdm(val_loader)):
+
+#             if 'cifar' not in val_dataset_name:
+#                 if i % 20 != 0 and not args.evaluate:
+#                     continue
+
+#             images = images.to(device)
+#             target = target.to(device)
+#             text_tokens = clip.tokenize(texts).to(device)
+
+#             # print(images.size())
+
+#             with autocast():
+
+#                 # clean images, with prompt and without prompt
+#                 # compute output
+#                 with torch.no_grad():
+#                     # prompt_token = add_prompter()
+#                     prompt_token = None
+#                     # output_prompt, _ = model(prompter(clip_img_preprocessing(images)), text_tokens, prompt_token)
+#                     output_prompt, _ = multiGPU_CLIP(model_image, model_text, model,
+#                                                      prompter(clip_img_preprocessing(images)), text_tokens,
+#                                                      prompt_token)
+
+#                     loss = criterion(output_prompt, target)
+
+#                     # measure accuracy and record loss
+#                     acc1 = accuracy(output_prompt, target, topk=(1,))
+#                     losses.update(loss.item(), images.size(0))
+#                     top1_prompt.update(acc1[0].item(), images.size(0))
+
+#                     top1_org.update(acc1[0].item(), images.size(0))
+
+#                 torch.cuda.empty_cache()
+
+#                 # generate adv example
+#                 if args.CW:
+#                     delta_prompt = attack_CW(prompter, model, model_text, model_image, add_prompter, criterion,
+#                                              images, target, text_tokens,
+#                                              test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps)
+#                     attacked_images = images + delta_prompt
+#                 elif args.autoattack:
+#                     attacked_images = attack_auto(model, images, target, text_tokens,
+#                         None, None, epsilon=args.test_eps, attacks_to_run=attacks_to_run)
+#                 else:
+#                     delta_prompt = attack_pgd(prompter, model, model_text, model_image, add_prompter, criterion,
+#                                               images, target, text_tokens,
+#                                               test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps)
+#                     attacked_images = images + delta_prompt
+
+#                 # compute output
+#                 torch.cuda.empty_cache()
+#                 with torch.no_grad():
+#                     prompt_token = add_prompter()
+#                     # output_prompt_adv, _ = model(prompter(clip_img_preprocessing(images + delta_prompt)), text_tokens, prompt_token)
+#                     output_prompt_adv, _ = multiGPU_CLIP(model_image, model_text, model,
+#                                                          prompter(clip_img_preprocessing(attacked_images)),
+#                                                          text_tokens, prompt_token)
+
+#                     loss = criterion(output_prompt_adv, target)
+
+#                 # bl attack
+#                 torch.cuda.empty_cache()
+
+#                 # measure accuracy and record loss
+#                 acc1 = accuracy(output_prompt_adv, target, topk=(1,))
+#                 losses.update(loss.item(), images.size(0))
+#                 top1_adv_prompt.update(acc1[0].item(), images.size(0))
+
+#                 # acc1 = accuracy(output_org_adv, target, topk=(1,))
+#                 # top1_adv_org.update(acc1[0].item(), images.size(0))
+
+#             # measure elapsed time
+#             batch_time.update(time.time() - end)
+#             end = time.time()
+
+#             if i % args.print_freq == 0:
+#                 progress.display(i)
+#                 if args.debug:
+#                     break
+
+#         torch.cuda.empty_cache()
+
+#         print(dataset_name + ' * Adv Prompt Acc@1 {top1_adv_prompt.avg:.3f} Adv Original Acc@1 {top1_adv_org.avg:.3f} '
+#                              '*  Prompt Acc@1 {top1_prompt.avg:.3f} Original Acc@1 {top1_org.avg:.3f}'
+#               .format(top1_adv_prompt=top1_adv_prompt, top1_adv_org=top1_adv_org,
+#                       top1_prompt=top1_prompt, top1_org=top1_org))
+#         acc_all.append(top1_adv_prompt.avg)
+
+#     # if args.use_wandb:
+#     #     wandb.log({
+#     #         'val_loss': losses.avg,
+#     #         'val_acc_prompt': top1_prompt.avg,
+#     #         'val_acc_org': top1_org.avg,
+#     #     })
+
+#     return np.mean(acc_all)
 def validate(val_loader_list, val_dataset_name, texts_list, model, model_text, model_image,
              prompter, add_prompter, criterion, args):
     dataset_num = len(val_loader_list)
@@ -882,110 +1041,87 @@ def validate(val_loader_list, val_dataset_name, texts_list, model, model_text, m
     test_stepsize = args.test_stepsize
 
     for cnt in range(dataset_num):
-
         val_loader = val_loader_list[cnt]
         texts = texts_list[cnt]
         dataset_name = val_dataset_name[cnt]
 
         binary = ['PCAM', 'hateful_memes']
-        attacks_to_run=['apgd-ce', 'apgd-dlr']
+        attacks_to_run = ['apgd-ce', 'apgd-dlr']
         if dataset_name in binary:
-            attacks_to_run=['apgd-ce']
+            attacks_to_run = ['apgd-ce']
 
         batch_time = AverageMeter('Time', ':6.3f')
         losses = AverageMeter('Loss', ':.4e')
-        top1_org = AverageMeter('Original Acc@1', ':6.2f')
-        top1_prompt = AverageMeter('Prompt Acc@1', ':6.2f')
-        top1_adv_org = AverageMeter('Adv Original Acc@1', ':6.2f')
-        top1_adv_prompt = AverageMeter('Adv Prompt Acc@1', ':6.2f')
+        top1 = AverageMeter('Acc@1', ':6.2f')
+        top1_adv = AverageMeter('Adv Acc@1', ':6.2f')
 
         progress = ProgressMeter(
             len(val_loader),
-            [batch_time, losses, top1_org, top1_prompt, top1_adv_org, top1_adv_prompt],
-            prefix=dataset_name + '_Validate: ')
+            [batch_time, losses, top1, top1_adv],
+            prefix=dataset_name + '_Validate: '
+        )
 
-        # switch to evaluation mode
-        prompter.eval()
-        add_prompter.eval()
         model.eval()
-
-        # print(val_dataset_name, 'text token', texts_list)
-
-        #
         end = time.time()
+
         for i, (images, target) in enumerate(tqdm(val_loader)):
-
-            if 'cifar' not in val_dataset_name:
-                if i % 20 != 0 and not args.evaluate:
-                    continue
-
+# =====================================================================
+            # if 'cifar' not in dataset_name.lower():
+            #     if i % 20 != 0 and not args.evaluate:
+            #         continue
+# =====================================================================
             images = images.to(device)
             target = target.to(device)
             text_tokens = clip.tokenize(texts).to(device)
 
-            # print(images.size())
-
             with autocast():
-
-                # clean images, with prompt and without prompt
-                # compute output
+                # clean
                 with torch.no_grad():
-                    # prompt_token = add_prompter()
-                    prompt_token = None
-                    # output_prompt, _ = model(prompter(clip_img_preprocessing(images)), text_tokens, prompt_token)
-                    output_prompt, _ = multiGPU_CLIP(model_image, model_text, model,
-                                                     prompter(clip_img_preprocessing(images)), text_tokens,
-                                                     prompt_token)
-
-                    loss = criterion(output_prompt, target)
-
-                    # measure accuracy and record loss
-                    acc1 = accuracy(output_prompt, target, topk=(1,))
+                    output, _ = multiGPU_CLIP(
+                        model_image, model_text, model,
+                        clip_img_preprocessing(images), text_tokens, None
+                    )
+                    loss = criterion(output, target)
+                    acc1 = accuracy(output, target, topk=(1,))
                     losses.update(loss.item(), images.size(0))
-                    top1_prompt.update(acc1[0].item(), images.size(0))
-
-                    top1_org.update(acc1[0].item(), images.size(0))
+                    top1.update(acc1[0].item(), images.size(0))
 
                 torch.cuda.empty_cache()
 
-                # generate adv example
+                # adversarial examples
                 if args.CW:
-                    delta_prompt = attack_CW(prompter, model, model_text, model_image, add_prompter, criterion,
-                                             images, target, text_tokens,
-                                             test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps)
-                    attacked_images = images + delta_prompt
+                    delta = attack_CW_noprompt(
+                        prompter, model, model_text, model_image, criterion,
+                        images, target, text_tokens,
+                        test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps
+                    )
+                    attacked_images = images + delta
                 elif args.autoattack:
-                    attacked_images = attack_auto(model, images, target, text_tokens,
-                        None, None, epsilon=args.test_eps, attacks_to_run=attacks_to_run)
+                    attacked_images = attack_auto(
+                        model, images, target, text_tokens,
+                        None, None, epsilon=args.test_eps, attacks_to_run=attacks_to_run
+                    )
                 else:
-                    delta_prompt = attack_pgd(prompter, model, model_text, model_image, add_prompter, criterion,
-                                              images, target, text_tokens,
-                                              test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps)
-                    attacked_images = images + delta_prompt
+                    delta = attack_pgd_noprompt(
+                        prompter, model, model_text, model_image, criterion,
+                        images, target, text_tokens,
+                        test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps
+                    )
+                    attacked_images = images + delta
 
-                # compute output
                 torch.cuda.empty_cache()
+
+                # adversarial eval
                 with torch.no_grad():
-                    prompt_token = add_prompter()
-                    # output_prompt_adv, _ = model(prompter(clip_img_preprocessing(images + delta_prompt)), text_tokens, prompt_token)
-                    output_prompt_adv, _ = multiGPU_CLIP(model_image, model_text, model,
-                                                         prompter(clip_img_preprocessing(attacked_images)),
-                                                         text_tokens, prompt_token)
+                    output_adv, _ = multiGPU_CLIP(
+                        model_image, model_text, model,
+                        clip_img_preprocessing(attacked_images), text_tokens, None
+                    )
+                    loss_adv = criterion(output_adv, target)
+                    acc1_adv = accuracy(output_adv, target, topk=(1,))
+                    losses.update(loss_adv.item(), images.size(0))
+                    top1_adv.update(acc1_adv[0].item(), images.size(0))
 
-                    loss = criterion(output_prompt_adv, target)
-
-                # bl attack
-                torch.cuda.empty_cache()
-
-                # measure accuracy and record loss
-                acc1 = accuracy(output_prompt_adv, target, topk=(1,))
-                losses.update(loss.item(), images.size(0))
-                top1_adv_prompt.update(acc1[0].item(), images.size(0))
-
-                # acc1 = accuracy(output_org_adv, target, topk=(1,))
-                # top1_adv_org.update(acc1[0].item(), images.size(0))
-
-            # measure elapsed time
             batch_time.update(time.time() - end)
             end = time.time()
 
@@ -996,18 +1132,14 @@ def validate(val_loader_list, val_dataset_name, texts_list, model, model_text, m
 
         torch.cuda.empty_cache()
 
-        print(dataset_name + ' * Adv Prompt Acc@1 {top1_adv_prompt.avg:.3f} Adv Original Acc@1 {top1_adv_org.avg:.3f} '
-                             '*  Prompt Acc@1 {top1_prompt.avg:.3f} Original Acc@1 {top1_org.avg:.3f}'
-              .format(top1_adv_prompt=top1_adv_prompt, top1_adv_org=top1_adv_org,
-                      top1_prompt=top1_prompt, top1_org=top1_org))
-        acc_all.append(top1_adv_prompt.avg)
-
-    # if args.use_wandb:
-    #     wandb.log({
-    #         'val_loss': losses.avg,
-    #         'val_acc_prompt': top1_prompt.avg,
-    #         'val_acc_org': top1_org.avg,
-    #     })
+        print(
+            dataset_name +
+            ' * Adv Acc@1 {top1_adv.avg:.3f} * Acc@1 {top1.avg:.3f}'.format(
+                top1_adv=top1_adv,
+                top1=top1
+            )
+        )
+        acc_all.append(top1_adv.avg)
 
     return np.mean(acc_all)
 

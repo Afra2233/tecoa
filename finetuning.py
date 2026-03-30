@@ -14,7 +14,7 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 
 from torchvision.datasets import StanfordCars, Food101, SUN397, EuroSAT, \
-    Caltech256, Country211, Flowers102, PCAM, FGVCAircraft, HatefulMemes
+    Caltech256, Country211, Flowers102, PCAM, FGVCAircraft
 
 from torchvision.datasets import *
 
@@ -134,12 +134,15 @@ def parse_option():
 best_acc1 = 0
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+
+
 CIFAR100_MEAN = (0.48145466, 0.4578275, 0.40821073)
 CIFAR100_STD = (0.26862954, 0.26130258, 0.27577711)
 
 mu = torch.tensor(CIFAR100_MEAN).view(3, 1, 1).cuda()
 std = torch.tensor(CIFAR100_STD).view(3, 1, 1).cuda()
-
+print("cuda device count:", torch.cuda.device_count())
+print("current device:", torch.cuda.current_device())
 
 def normalize(X):
     return (X - mu) / std
@@ -196,8 +199,6 @@ upper_limit, lower_limit = 1, 0
 def main():
     global best_acc1, device
  
-    print("cuda device count:", torch.cuda.device_count())
-    print("current device:", torch.cuda.current_device())
 
     args = parse_option()
     args.train_eps = args.train_eps / 255.

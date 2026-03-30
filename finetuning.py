@@ -370,7 +370,7 @@ def main():
         val_dataset_name = ['SUN397', 'Food101', 'flowers102', 'Caltech101', 'Caltech256']
 
     else:
-        val_dataset_name = ['cifar10', 'cifar100', 'dtd', 'EuroSAT']
+        val_dataset_name = ['cifar10', 'cifar100', 'dtd']
 
 
     for each in val_dataset_name:

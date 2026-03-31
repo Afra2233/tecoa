@@ -1064,19 +1064,16 @@ def validate(val_loader_list, val_dataset_name, texts_list, model, model_text, m
         model.eval()
         end = time.time()
 
+        print(f"Start validating on {dataset_name}")
+
         for i, (images, target) in enumerate(tqdm(val_loader)):
-# =====================================================================
-            # if 'cifar' not in dataset_name.lower():
-            #     if i % 20 != 0 and not args.evaluate:
-            #         continue
-# =====================================================================
-            images = images.to(device)
-            target = target.to(device)
+            images = images.to(device, non_blocking=True)
+            target = target.to(device, non_blocking=True)
             text_tokens = clip.tokenize(texts).to(device)
 
-            with autocast():
-                # clean
-                with torch.no_grad():
+            # clean eval: AMP 可以保留
+            with torch.no_grad():
+                with autocast():
                     output, _ = multiGPU_CLIP(
                         model_image, model_text, model,
                         clip_img_preprocessing(images), text_tokens, None
@@ -1086,40 +1083,41 @@ def validate(val_loader_list, val_dataset_name, texts_list, model, model_text, m
                     losses.update(loss.item(), images.size(0))
                     top1.update(acc1[0].item(), images.size(0))
 
-                torch.cuda.empty_cache()
+            # attack generation: 先不要 autocast
+            if args.CW:
+                delta = attack_CW_noprompt(
+                    prompter, model, model_text, model_image, criterion,
+                    images, target, text_tokens,
+                    test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps
+                )
+                attacked_images = images + delta
+            elif args.autoattack:
+                attacked_images = attack_auto(
+                    model, images, target, text_tokens,
+                    None, None, epsilon=args.test_eps, attacks_to_run=attacks_to_run
+                )
+            else:
+                delta = attack_pgd_noprompt(
+                    prompter, model, model_text, model_image, criterion,
+                    images, target, text_tokens,
+                    test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps
+                )
+                attacked_images = images + delta
 
-                # adversarial examples
-                if args.CW:
-                    delta = attack_CW_noprompt(
-                        prompter, model, model_text, model_image, criterion,
-                        images, target, text_tokens,
-                        test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps
-                    )
-                    attacked_images = images + delta
-                elif args.autoattack:
-                    attacked_images = attack_auto(
-                        model, images, target, text_tokens,
-                        None, None, epsilon=args.test_eps, attacks_to_run=attacks_to_run
-                    )
-                else:
-                    delta = attack_pgd_noprompt(
-                        prompter, model, model_text, model_image, criterion,
-                        images, target, text_tokens,
-                        test_stepsize, args.test_numsteps, 'l_inf', epsilon=args.test_eps
-                    )
-                    attacked_images = images + delta
+            # 可选：排查数值问题
+            if torch.isnan(attacked_images).any() or torch.isinf(attacked_images).any():
+                print(f"[{dataset_name}] bad attacked_images at batch {i}")
+                continue
 
-                torch.cuda.empty_cache()
-
-                # adversarial eval
-                with torch.no_grad():
+            # adversarial eval: AMP 可以保留
+            with torch.no_grad():
+                with autocast():
                     output_adv, _ = multiGPU_CLIP(
                         model_image, model_text, model,
                         clip_img_preprocessing(attacked_images), text_tokens, None
                     )
                     loss_adv = criterion(output_adv, target)
                     acc1_adv = accuracy(output_adv, target, topk=(1,))
-                    losses.update(loss_adv.item(), images.size(0))
                     top1_adv.update(acc1_adv[0].item(), images.size(0))
 
             batch_time.update(time.time() - end)
@@ -1129,8 +1127,6 @@ def validate(val_loader_list, val_dataset_name, texts_list, model, model_text, m
                 progress.display(i)
                 if args.debug:
                     break
-
-        torch.cuda.empty_cache()
 
         print(
             dataset_name +

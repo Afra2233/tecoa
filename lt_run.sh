@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=TECOA
+#SBATCH --job-name=lt_tecoa
 
 #SBATCH -p gpu-medium
 #SBATCH --nodes=1

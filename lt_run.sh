@@ -14,7 +14,7 @@ cd /scratch/hpc/07/zhang303/tecoa
 
 # 1) 原始 CLIP baseline（不微调）
 
-python robust_finetune_cifar100_lt_experiments.py \
+python at_lt_test.py \
   --no_finetune \
   --dataset cifar100 \
   --batch_size 16 \

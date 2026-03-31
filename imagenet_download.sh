@@ -9,6 +9,8 @@
 
 set -euo pipefail
 
+module load anaconda3/2023.09
+source activate tecoa
 ########################################
 # paths
 ########################################

@@ -48,15 +48,15 @@ srun python at_lt_test.py \
 #   --name CLIP_lt_finetuning_version_1
 # #   20688444,
 
-# 4) same-budget balanced 对照组
-srun python at_lt_test.py \
-  --dataset cifar100_balanced_subset \
-  --num_workers 8 \
-  --imbalance_factor 100 \
-  --lt_seed 0 \
-  --epochs 10 \
-  --batch_size 16 \
-  --train_eps 2 --train_numsteps 5 --train_stepsize 1 \
-  --test_eps 2 --test_numsteps 5 --test_stepsize 1\
-  --name CLIP_same-budget_balanced_finetuning_version_1
-#   20688447,
+# # 4) same-budget balanced 对照组
+# srun python at_lt_test.py \
+#   --dataset cifar100_balanced_subset \
+#   --num_workers 8 \
+#   --imbalance_factor 100 \
+#   --lt_seed 0 \
+#   --epochs 10 \
+#   --batch_size 16 \
+#   --train_eps 2 --train_numsteps 5 --train_stepsize 1 \
+#   --test_eps 2 --test_numsteps 5 --test_stepsize 1\
+#   --name CLIP_same-budget_balanced_finetuning_version_1
+# #   20688447,

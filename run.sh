@@ -15,8 +15,8 @@ srun python finetuning.py \
   --batch_size 64 \
   --num_workers 8 \
   --root /scratch/hpc/07/zhang303/tecoa/data \
-  --dataset cifar100 \
-  --name version_2 \
+  --dataset ImageNet \
+  --name version_3 \
   --learning_rate 1e-5 \
   --epochs 10 \
   --train_eps 1 \

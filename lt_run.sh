@@ -24,29 +24,30 @@ cd /scratch/hpc/07/zhang303/tecoa
 # 20687282,
 
 # 2) 标准 CIFAR100 对抗微调
-srun python at_lt_test.py \
-  --dataset cifar100 \
-  --num_workers 8 \
-  --epochs 10 \
-  --batch_size 16 \
-  --train_eps 2 --train_numsteps 5 --train_stepsize 1 \
-  --test_eps 2 --test_numsteps 5 --test_stepsize 1\
-  --name standard_CLIP_finetuning_version_1
-
-
-
-# # 3) CIFAR100-LT-100 对抗微调
 # srun python at_lt_test.py \
-#   --dataset cifar100_lt \
+#   --dataset cifar100 \
 #   --num_workers 8 \
-#   --imbalance_factor 100 \
-#   --lt_seed 0 \
 #   --epochs 10 \
 #   --batch_size 16 \
 #   --train_eps 2 --train_numsteps 5 --train_stepsize 1 \
 #   --test_eps 2 --test_numsteps 5 --test_stepsize 1\
-#   --name CLIP_lt_finetuning_version_1
-# #   20688444,
+#   --name standard_CLIP_finetuning_version_1
+# #   20692951
+
+
+
+# 3) CIFAR100-LT-100 对抗微调
+srun python at_lt_test.py \
+  --dataset cifar100_lt \
+  --num_workers 8 \
+  --imbalance_factor 100 \
+  --lt_seed 0 \
+  --epochs 10 \
+  --batch_size 16 \
+  --train_eps 2 --train_numsteps 5 --train_stepsize 1 \
+  --test_eps 2 --test_numsteps 5 --test_stepsize 1\
+  --name CLIP_lt_finetuning_version_1
+#   20688444,
 
 # # 4) same-budget balanced 对照组
 # srun python at_lt_test.py \

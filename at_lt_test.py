@@ -493,7 +493,7 @@ def default_val_dataset_names(args):
         return ['SUN397', 'Food101', 'flowers102', 'Caltech101', 'Caltech256']
 
     # return ['ImageNet','STL10','fgvc_aircraft', 'cifar10', 'dtd','Food101','cifar100']
-    return ['STL10','fgvc_aircraft', 'cifar10', 'dtd','Food101','cifar100']
+    return ['STL10','fgvc_aircraft','dtd']
 
 def build_eval_datasets(args, preprocess, preprocess224, preprocess224_interpolate):
     _, imgnet_full = resolve_imagenet_root(args)

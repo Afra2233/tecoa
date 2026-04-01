@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=lt_tecoa
 
-#SBATCH -p gpu-medium
+#SBATCH -p gpu-short
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:2
 #SBATCH --time=48:00:00
@@ -47,7 +47,7 @@ srun python at_lt_test.py \
   --train_eps 2 --train_numsteps 5 --train_stepsize 1 \
   --test_eps 2 --test_numsteps 5 --test_stepsize 1\
   --name CLIP_lt_finetuning_version_1
-#   20688444,
+#   20688444, 20713700
 
 # # 4) same-budget balanced 对照组
 # srun python at_lt_test.py \

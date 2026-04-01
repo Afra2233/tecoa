@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=lt_tecoa
 
-#SBATCH -p gpu-short
+#SBATCH -p gpu-medium
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:2
 

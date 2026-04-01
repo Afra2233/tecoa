@@ -46,7 +46,7 @@ cd /scratch/hpc/07/zhang303/tecoa
 #   --batch_size 16 \
 #   --train_eps 2 --train_numsteps 5 --train_stepsize 1 \
 #   --test_eps 2 --test_numsteps 5 --test_stepsize 1\
-#   --name CLIP_lt_finetuning_version_1
+#   --name CLIP_lt_finetuning_version_2
 #   20688444, 20713700
 
 # 4) same-budget balanced 对照组
@@ -59,5 +59,5 @@ srun python at_lt_test.py \
   --batch_size 16 \
   --train_eps 2 --train_numsteps 5 --train_stepsize 1 \
   --test_eps 2 --test_numsteps 5 --test_stepsize 1\
-  --name cifar100_same-budget_balanced_finetuning_version_1
+  --name cifar100_same-budget_balanced_finetuning_version_2
 #   20688447,
